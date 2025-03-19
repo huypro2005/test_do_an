@@ -5,8 +5,9 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from flask_migrate import Migrate, migrate
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
-from sqlalchemy import false, true
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///a.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -14,6 +15,7 @@ app.secret_key = 'hello_man'
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+limiter = Limiter(get_remote_address,app=app, default_limits= "10 per minute")
 requests_count = {}
 
 
@@ -61,8 +63,13 @@ def log_count():
         requests_count[ip] =1
     print(f'{ip} requested')
 
+@app.route('/')
+def index():
+    return jsonify({"message": 'hello'})
+
 
 @app.route('/api/login', methods=['POST'])
+@limiter.limit('10 per minute')
 def login():
     log_count()
     try:
@@ -82,6 +89,7 @@ def login():
         return jsonify({'status': 'error', 'message': str(e)})
     
 @app.route('/api/logout', methods=['POST'])
+@limiter.limit('10 per minute')
 def logout():
     log_count()
     if 'user_id' in session:
@@ -91,6 +99,7 @@ def logout():
 
 
 @app.route('/api/register', methods =['POST'])
+@limiter.limit('10 per minute')
 def register():
     log_count()
     data = request.get_json()
@@ -108,6 +117,7 @@ def register():
     return jsonify({'message': 'fail'})
 
 @app.route('/api/get_account/')
+@limiter.limit('10 per minute')
 def get_acc():
     log_count()
     if 'username' in session:
